@@ -113,8 +113,8 @@ const Dashboard = () => {
         const { created_from, created_to } = computePeriodRange(selectedPeriod);
         const userId = getCurrentUserId();
         const params = new URLSearchParams();
-        params.append('start', created_from);
-        params.append('finish', created_to);
+        params.append('created_from', created_from);
+        params.append('created_to', created_to);
         params.append('with_detail', 'true');
         if (userId) params.append('user_id', userId);
         const url = `/api/v2/leads/stats/by-cities?${params.toString()}`;

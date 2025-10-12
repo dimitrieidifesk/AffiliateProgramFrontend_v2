@@ -907,8 +907,8 @@ const AdminStatsPage = () => {
                     finishStr = toLocalStart(today);
                 }
 
-                params.set('start', startStr);
-                params.set('finish', finishStr);
+                params.set('created_from', startStr);
+                params.set('created_to', finishStr);
                 params.set('with_detail', 'false');
                 if (flowsFilter.length) params.set('threads', flowsFilter.join(','));
                 if (statusFilter !== 'all') params.set('service_status_id', String(statusKeyToId(statusFilter)));
