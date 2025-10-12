@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Запустить сборку фронтенда
-npm run build:prod
+npm run build
 
 # Удалить папку dist в /var/www/
 sudo rm -rf /var/www/dist
