@@ -7,7 +7,7 @@ import http from 'services/http';
  */
 export async function fetchUserProfile(userIdOrFallback = '00000', options = {}) {
   const id = String(userIdOrFallback || '00000');
-  const res = await http.get(`/api/v2/users/${id}?with_requisites=true`, options);
+  const res = await http.get(`/api/v2/users/${id}?with_requisites=true`, { ensureAuthCheck: false, ...options });
   if (!res.ok) {
     const message = typeof res.data === 'string' ? res.data : (res.data?.error || res.data?.message || 'Failed to load user');
     throw new Error(message);

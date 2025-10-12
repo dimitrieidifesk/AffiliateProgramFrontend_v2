@@ -46,11 +46,9 @@ function hasCookie(name) {
 }
 
 function shouldPreRedirectToLogin({ ensureAuthCheck = true } = {}) {
-  if (!ensureAuthCheck) return false;
-  // If neither access nor refresh token is visible to JS, skip pre-redirect and let server drive 401
-  const hasAccess = hasCookie(runtimeConfig.accessCookieName);
-  const hasRefresh = hasCookie(runtimeConfig.refreshCookieName);
-  return !hasAccess && !hasRefresh;
+  // In production with HttpOnly cookies, JS cannot read cookies, so pre-redirect is unreliable.
+  // We skip pre-redirect and let the server return 401/422; then refresh+redirect logic below applies.
+  return false;
 }
 
 function redirectToLogin(navigate) {
@@ -123,10 +121,7 @@ async function coreRequest(path, method = 'GET', options = {}) {
 
   const effectiveBaseURL = baseURL ?? runtimeConfig.baseURL;
 
-  if (shouldPreRedirectToLogin({ ensureAuthCheck })) {
-    redirectToLogin(navigate);
-    return { ok: false, status: 401, data: null, headers: new Headers() };
-  }
+  // Do not pre-redirect based on client-side cookie visibility; proceed and rely on server response.
 
   const url = joinURL(effectiveBaseURL, path);
   const opts = normalizeOptions(method, fetchOptions);
