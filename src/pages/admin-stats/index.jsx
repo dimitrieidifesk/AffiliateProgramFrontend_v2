@@ -634,6 +634,50 @@ const AdminStatsPage = () => {
         return params;
     };
 
+    // Build params specifically for /filter_summary: use created_from/created_to instead of start/finish
+    const buildFilterSummaryParams = () => {
+        const params = new URLSearchParams();
+        const pad = (n) => String(n).padStart(2, '0');
+        const toLocalStart = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
+        const makeDateAt = (dateStr, h = 0, m = 0) => {
+            const d = new Date(dateStr + 'T00:00:00');
+            d.setHours(h, m, 0, 0);
+            return d;
+        };
+        let createdFrom = '', createdTo = '';
+        if (dateFilter.from && dateFilter.to) {
+            const fromD = makeDateAt(dateFilter.from, 0, 0);
+            const toD = makeDateAt(dateFilter.to, 0, 0);
+            createdFrom = toLocalStart(fromD);
+            createdTo = toLocalStart(toD);
+        } else if (dateFilter.from && !dateFilter.to) {
+            const fromD = makeDateAt(dateFilter.from, 0, 0);
+            const toD = new Date(fromD); toD.setDate(toD.getDate() + 30);
+            createdFrom = toLocalStart(fromD);
+            createdTo = toLocalStart(toD);
+        } else if (!dateFilter.from && dateFilter.to) {
+            const toD = makeDateAt(dateFilter.to, 0, 0);
+            const fromD = new Date(toD); fromD.setDate(fromD.getDate() - 30);
+            createdFrom = toLocalStart(fromD);
+            createdTo = toLocalStart(toD);
+        } else {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const fromD = new Date(today); fromD.setDate(fromD.getDate() - 30);
+            createdFrom = toLocalStart(fromD);
+            createdTo = toLocalStart(today);
+        }
+        params.set('created_from', createdFrom);
+        params.set('created_to', createdTo);
+        if (flowsFilter.length) params.set('threads', flowsFilter.join(','));
+        if (statusFilter !== 'all') params.set('service_status_id', String(statusKeyToId(statusFilter)));
+        if (citiesFilter.length) params.set('cities', citiesFilter.join(','));
+        if (phoneQuery && phoneQuery.trim()) params.set('query', phoneQuery.trim());
+        if (wmFilter.length) params.set('users', wmFilter.join(','));
+        if (paidFilter !== 'all') params.set('paid_commission', paidFilter === 'paid' ? 'true' : 'false');
+        if (selectedOfferValue) params.set('offer_id', selectedOfferValue);
+        return params;
+    };
+
     const handleToggleSelectAllFiltered = async (e) => {
         const checked = e.target.checked;
         if (checked) {
@@ -642,7 +686,7 @@ const AdminStatsPage = () => {
             setSelectedMeta(new Map()); // clear cached meta when entering global mode
             setLoadingFilterSummary(true); setFilterSummaryError('');
             try {
-                const params = buildStatsParams();
+                const params = buildFilterSummaryParams();
                 const { ok, data } = await http.get(`/api/v2/leads/stats/filter_summary?${params.toString()}`);
                 setFilterSummary(ok ? data : null);
             } catch (err) {
@@ -668,7 +712,7 @@ const AdminStatsPage = () => {
             if (!selectAllFiltered) return;
             setLoadingFilterSummary(true); setFilterSummaryError('');
             try {
-                const params = buildStatsParams();
+                const params = buildFilterSummaryParams();
                 const { ok, data } = await http.get(`/api/v2/leads/stats/filter_summary?${params.toString()}`);
                 if (!cancelled) setFilterSummary(ok ? data : null);
             } catch (e) {

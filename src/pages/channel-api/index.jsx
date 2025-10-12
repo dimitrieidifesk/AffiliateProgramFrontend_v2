@@ -434,7 +434,6 @@ const ChannelApiSettings = () => {
                     </div>
                     <div>
                       <p className="font-medium text-yellow-900">Ожидаем POST запрос...</p>
-                      <p className="text-sm text-yellow-700">Система опрашивает сервер каждые 5 секунд</p>
                     </div>
                   </div>
 
