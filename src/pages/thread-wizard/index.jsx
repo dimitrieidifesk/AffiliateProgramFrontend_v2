@@ -76,6 +76,15 @@ const ThreadCreationWizard = () => {
             description: 'Размещение в 2GIS картах',
             channels: ['api', 'telephony']
         }
+        ,
+        {
+            id: 'marketplaces',
+            name: 'Маркетплейс услуг',
+            icon: 'Store',
+            iconBg: 'bg-pink-500',
+            description: 'Площадки Профи.ру, Яндекс Услуги и др.',
+            channels: ['api', 'telephony']
+        }
     ];
 
     const steps = [
@@ -164,6 +173,7 @@ const ThreadCreationWizard = () => {
                 target: 'Таргет',
                 avito: 'Авито',
                 maps: 'Карты 2GIS',
+                marketplaces: 'Маркетплейс услуг',
             };
             const selectedSource = trafficSources.find(s => s.id === formData.source);
             const payload = {
@@ -269,7 +279,7 @@ const ThreadCreationWizard = () => {
                                                     : 'border-gray-200 hover:border-yellow-300'
                                             }`}
                                         >
-                                            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
+                                            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 flex-shrink-0">
                                                 <Icon name="User" size={18} color="#111827" />
                                             </div>
                                             <div>
@@ -287,7 +297,7 @@ const ThreadCreationWizard = () => {
                                                     : 'border-gray-200 hover:border-yellow-300'
                                             }`}
                                         >
-                                            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
+                                            <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 flex-shrink-0">
                                                 <Icon name="Briefcase" size={18} color="#111827" />
                                             </div>
                                             <div>
@@ -320,7 +330,7 @@ const ThreadCreationWizard = () => {
                                                         : 'border-gray-200 hover:border-yellow-300'
                                                 }`}
                                             >
-                                                <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3">
+                                                <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center mr-3 flex-shrink-0">
                                                     <Icon name={offer.icon} size={18} color="#111827" />
                                                 </div>
                                                 <div>
@@ -368,7 +378,7 @@ const ThreadCreationWizard = () => {
                     `}
                                     >
                                         <div className="flex items-center space-x-4 mb-4">
-                                            <div className={`w-12 h-12 ${source.iconBg} rounded-xl flex items-center justify-center shadow-lg`}>
+                                            <div className={`w-12 h-12 ${source.iconBg} rounded-xl flex items-center justify-center shadow-lg flex-shrink-0`}>
                                                 <Icon
                                                     name={source.icon}
                                                     size={20}

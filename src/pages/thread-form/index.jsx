@@ -57,6 +57,9 @@ const ThreadForm = () => {
     const [hasLoadedData, setHasLoadedData] = useState(false);
     const [isAutoSaving, setIsAutoSaving] = useState(false);
     const [autoSaveError, setAutoSaveError] = useState(null);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
 
     // Traffic sources configuration
     const trafficSources = [
@@ -100,6 +103,15 @@ const ThreadForm = () => {
             description: 'Размещение в 2GIS картах',
             channels: ['api', 'telephony']
         }
+        ,
+        {
+            id: 'marketplaces',
+            name: 'Маркетплейс услуг',
+            icon: 'Store',
+            iconBg: 'bg-pink-500',
+            description: 'Площадки типа Профи.ру, Яндекс Услуги и др.',
+            channels: ['api', 'telephony']
+        }
     ];
 
     // Map backend traffic_source name to internal id used in UI
@@ -110,6 +122,7 @@ const ThreadForm = () => {
         if (n.includes('таргет')) return 'target';
         if (n.includes('авито')) return 'avito';
         if (n.includes('карты') || n.includes('2gis') || n.includes('2 gis')) return 'maps';
+        if (n.includes('профи') || n.includes('яндекс услуги') || n.includes('услуги') || n.includes('маркетплейс')) return 'marketplaces';
         return '';
     };
 
@@ -279,6 +292,26 @@ const ThreadForm = () => {
         }
     };
 
+    const handleConfirmDelete = async () => {
+        if (!isEdit || !id) return;
+        setIsDeleting(true);
+        setDeleteError('');
+        try {
+            const res = await http.delete(`/api/v2/threads/${id}`, { navigate });
+            if (res.ok) {
+                setShowDeleteConfirm(false);
+                navigate('/threads');
+            } else {
+                const msg = (res.data && (res.data.message || res.data.detail || res.data.error)) || 'Не удалось удалить поток';
+                setDeleteError(msg);
+            }
+        } catch (_) {
+            setDeleteError('Ошибка сети при удалении');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     // Get postback status for display
     const getPostbackStatus = () => {
         const enabledPostbacks = Object.values(formData?.postbacks || {}).filter(pb => pb?.enabled && pb?.url?.trim());
@@ -367,6 +400,15 @@ const ThreadForm = () => {
                                     >
                                         {isSubmitting && <Icon name="Loader2" size={16} className="animate-spin" />}
                                         <span>{isEdit ? 'Сохранить' : 'Создать'}</span>
+                                    </button>
+                                )}
+                                {isEdit && (
+                                    <button
+                                        onClick={() => { setDeleteError(''); setShowDeleteConfirm(true); }}
+                                        className="flex items-center space-x-2 px-3 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 nav-transition text-sm"
+                                    >
+                                        <Icon name="Archive" size={14} color="#dc2626" />
+                                        <span>В архив</span>
                                     </button>
                                 )}
                                 {isEdit && (
@@ -551,9 +593,40 @@ const ThreadForm = () => {
                     </div>
                 </div>
             </main>
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowDeleteConfirm(false)}></div>
+                    <div className="relative bg-white border border-gray-200 rounded-xl shadow-lg w-full max-w-sm p-5">
+                        <h2 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                            <Icon name="AlertTriangle" size={16} color="#dc2626" />Переместить поток в архив?
+                        </h2>
+                        <p className="text-[12px] text-gray-600 leading-relaxed mb-3">Поток будет перемещён в архив. Вернуть его можно из списка архивных потоков.</p>
+                        {deleteError ? (
+                            <div className="text-[12px] text-red-600 mb-2">{deleteError}</div>
+                        ) : null}
+                        <div className="flex justify-end items-center gap-2">
+                            <button
+                                disabled={isDeleting}
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className={`px-3 h-8 rounded-md border text-[11px] nav-transition ${isDeleting ? 'opacity-40 cursor-not-allowed border-gray-200 text-gray-400' : 'border-gray-300 text-gray-600 hover:border-gray-400'}`}
+                            >Отмена</button>
+                            <button
+                                disabled={isDeleting}
+                                onClick={handleConfirmDelete}
+                                className={`px-4 h-8 rounded-md bg-red-600 hover:bg-red-700 text-white text-[11px] font-medium nav-transition ${isDeleting ? 'opacity-60 cursor-wait' : ''}`}
+                            >{isDeleting ? 'Перемещение…' : 'В архив'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+
+// Delete confirmation modal
+// Placed at the end to keep component lean
+// Note: Uses the outer component's state via closure
+// The modal itself is rendered conditionally within the return above for clarity
 
 // Channel Card Component
 const ChannelCard = ({ id, title, description, icon, iconBg, status, config, onNavigate }) => {

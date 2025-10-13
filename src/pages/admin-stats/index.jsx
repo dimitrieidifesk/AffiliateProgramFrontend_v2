@@ -67,6 +67,7 @@ const mapTrafficSourceLabel = (src) => {
     if (s.includes('target') || s.includes('таргет')) return 'Target';
     if (s === 'seo' || s.includes('сео')) return 'SEO';
     if (s.includes('2gis') || s.includes('2 gis') || s.includes('карты')) return 'Карты 2GIS';
+    if (s.includes('профи') || s.includes('яндекс услуги') || s.includes('услуги') || s.includes('маркетплейс')) return 'Маркетплейс услуг';
     if (s.includes('телефон')) return 'Телефония';
     if (s.includes('ленд') || s.includes('лендинг')) return 'Лендинги';
     return src; // fallback to whatever backend sends
@@ -75,7 +76,8 @@ const mapTrafficSourceLabel = (src) => {
 const mapThreadToFlow = (item) => ({
     id: String(item?.id ?? ''),
     name: item?.title || `Поток ${item?.id}`,
-    sourceType: mapTrafficSourceLabel(item?.traffic_source)
+    sourceType: mapTrafficSourceLabel(item?.traffic_source),
+    isDeleted: Boolean(item?.is_deleted),
 });
 
 const AdminStatsPage = () => {
@@ -135,7 +137,7 @@ const AdminStatsPage = () => {
         (async () => {
             setIsLoadingFlows(true);
             const userId = getCurrentUserId(); // reserved if backend needs scoping later
-            const { ok, data } = await http.get(`/api/v2/threads/?limit=500`);
+            const { ok, data } = await http.get(`/api/v2/threads/?limit=500&include_deleted=true`);
             if (!cancelled) {
                 if (ok && data && Array.isArray(data.items)) {
                     setBackendFlows(data.items.map(mapThreadToFlow));
@@ -752,6 +754,8 @@ const AdminStatsPage = () => {
             case 'SEO': return 'TrendingUp';
             case 'Телефония': return 'Phone';
             case 'Лендинги': return 'Globe';
+            case 'Карты 2GIS': return 'Map';
+            case 'Маркетплейс услуг': return 'Store';
             default: return 'Circle';
         }
     };
@@ -1074,7 +1078,9 @@ const AdminStatsPage = () => {
                             <input value={flowSearch} onChange={e => setFlowSearch(e.target.value)} placeholder="Поиск по ID или имени" className="mb-2 w-full h-7 text-[11px] px-2 border border-gray-300 rounded focus:border-yellow-400 focus:outline-none" />
                             {isLoadingFlows ? (
                                 <div className="text-[11px] text-gray-500 p-2">Загрузка...</div>
-                            ) : (backendFlows.length ? backendFlows : mockFlows).filter(f => f.name.toLowerCase().includes(flowSearch.toLowerCase()) || String(f.id).toLowerCase().includes(flowSearch.toLowerCase())).map(f => {
+                            ) : (backendFlows.length ? backendFlows.filter(f => !f.isDeleted) : mockFlows)
+                                .filter(f => f.name.toLowerCase().includes(flowSearch.toLowerCase()) || String(f.id).toLowerCase().includes(flowSearch.toLowerCase()))
+                                .map(f => {
                                 const active = flowsFilter.includes(f.id);
                                 const iconName = (() => {
                                     const label = mapTrafficSourceLabel(f.sourceType);
@@ -1083,6 +1089,8 @@ const AdminStatsPage = () => {
                                         case 'Яндекс.Директ': return 'Search';
                                         case 'Target': return 'Target';
                                         case 'SEO': return 'TrendingUp';
+                                        case 'Карты 2GIS': return 'Map';
+                                        case 'Маркетплейс услуг': return 'Store';
                                         case 'Телефония': return 'Phone';
                                         case 'Лендинги': return 'Globe';
                                         default: return 'Circle';

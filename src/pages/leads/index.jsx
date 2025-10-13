@@ -74,15 +74,20 @@ export default function LeadsList() {
     { id: 'flow10', name: 'Target аудитория Lookalike', sourceType: 'Target' },
   ];
 
-  // Map backend thread item to our flow meta shape
-  const mapThreadToFlow = (t) => ({ id: String(t?.id ?? ''), name: t?.title || `Поток #${t?.id}`, sourceType: t?.traffic_source || '' });
+  // Map backend thread item to our flow meta shape (preserve deletion flag)
+  const mapThreadToFlow = (t) => ({
+    id: String(t?.id ?? ''),
+    name: t?.title || `Поток #${t?.id}`,
+    sourceType: t?.traffic_source || '',
+    isDeleted: Boolean(t?.is_deleted),
+  });
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       setIsLoadingFlows(true);
       const userId = getCurrentUserId();
-      const { ok, data } = await http.get(`/api/v2/threads/?user_id=${encodeURIComponent(userId)}&limit=500`);
+  const { ok, data } = await http.get(`/api/v2/threads/?user_id=${encodeURIComponent(userId)}&limit=500&include_deleted=true`);
       if (!cancelled) {
         if (ok && data && Array.isArray(data.items)) {
           setBackendFlows(data.items.map(mapThreadToFlow));
@@ -442,6 +447,8 @@ export default function LeadsList() {
     if (s.includes('яндекс') && s.includes('дир')) return 'Search';
     // 2GIS maps
     if (s.includes('2gis') || s.includes('2 gis') || s.includes('карты')) return 'Map';
+    // Marketplaces (Профи.ру, Яндекс Услуги, др.)
+    if (s.includes('профи') || s.includes('яндекс услуги') || s.includes('услуги') || s.includes('маркетплейс')) return 'Store';
     // Targeting ads (Cyrillic/Latin)
     if (s.includes('таргет') || s.includes('target')) return 'Target';
     // SEO
@@ -520,12 +527,15 @@ export default function LeadsList() {
   };
 
   // flowsUniverse for FlowsPicker comes from backend threads
-  const flowsUniverse = useMemo(() => backendFlows.map(f => ({
-    id: f.id,
-    name: f.name,
-    sourceType: f.sourceType,
-    icon: sourceIcon(f.sourceType),
-  })), [backendFlows]);
+  // For picker UI, show only active (not deleted) flows; keep full list in backendFlows for id->meta mappings
+  const flowsUniverse = useMemo(() => backendFlows
+    .filter(f => !f.isDeleted)
+    .map(f => ({
+      id: f.id,
+      name: f.name,
+      sourceType: f.sourceType,
+      icon: sourceIcon(f.sourceType),
+    })), [backendFlows]);
 
   const filteredLeads = useMemo(() => mockLeads.filter(lead => {
     if (debouncedSearch && !lead.phone.includes(debouncedSearch)) return false;
