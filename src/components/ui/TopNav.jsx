@@ -25,7 +25,12 @@ const TopNav = () => {
         { label: 'Дашборд', path: '/dashboard' },
         { label: 'Потоки', path: '/threads' },
         { label: 'Лиды', path: '/leads' },
-        ...(serviceRole === 'admin' ? [{ label: 'Статистика', path: '/admin/stats' }] : [])
+        ...(serviceRole === 'admin'
+            ? [
+                { label: 'Статистика', path: '/admin/stats' },
+                { label: 'Выплаты', path: '/admin/payouts' },
+              ]
+            : [])
     ];
 
     // On mount: if we appear to have auth cookies, try to fetch current user once and persist

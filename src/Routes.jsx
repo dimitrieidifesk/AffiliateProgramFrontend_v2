@@ -20,6 +20,7 @@ import Registration from "pages/registration";
 import Login from "pages/login";
 import NotFound from "pages/NotFound";
 import AdminStatsPage from 'pages/admin-stats';
+import AdminPayoutsPage from 'pages/admin-payouts';
 
 const Routes = () => {
   return (
@@ -52,6 +53,7 @@ const InnerRoutes = () => {
           <Route path="/channel-telephony/:id" element={<ChannelTelephonySettings />} />
                 <Route path="/channel-avito/:id" element={<ChannelAvitoSettings />} />
                 <Route path="/admin/stats" element={<AdminStatsPage />} />
+                <Route path="/admin/payouts" element={<AdminPayoutsPage />} />
           
           {/* Старые маршруты для совместимости */}
           <Route path="/streams" element={<ThreadList />} />
