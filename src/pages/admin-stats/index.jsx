@@ -219,6 +219,17 @@ const AdminStatsPage = () => {
     const [maxCitiesToShow, setMaxCitiesToShow] = useState(10);
     // trigger refetches after mutations (e.g., payments)
     const [refreshNonce, setRefreshNonce] = useState(0);
+    // Cities aggregation (detailed, for table above leads)
+    const [citiesAgg, setCitiesAgg] = useState([]);
+    const [loadingCitiesAgg, setLoadingCitiesAgg] = useState(false);
+    const [citiesAggError, setCitiesAggError] = useState('');
+    const [expandedCities, setExpandedCities] = useState(new Set());
+    // Grouping mode: 'leads' | 'cities'
+    const [groupMode, setGroupMode] = useState('leads');
+    // Users aggregation
+    const [usersAgg, setUsersAgg] = useState([]);
+    const [loadingUsersAgg, setLoadingUsersAgg] = useState(false);
+    const [usersAggError, setUsersAggError] = useState('');
 
     const formatDateTime = (d) => {
         if (!d) return '';
@@ -960,6 +971,58 @@ const AdminStatsPage = () => {
         return () => ro.disconnect();
     }, []);
 
+    // Fetch cities aggregation (detailed) for compact table above leads
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoadingCitiesAgg(true); setCitiesAggError('');
+            try {
+                const params = buildStatsParams();
+                params.set('with_detail', 'true');
+                const path = `/api/v2/leads/stats/by-cities?${params.toString()}`;
+                const { ok, data } = await http.get(path);
+                if (cancelled) return;
+                if (ok && Array.isArray(data)) {
+                    setCitiesAgg(data);
+                } else {
+                    setCitiesAgg([]);
+                }
+            } catch (e) {
+                if (!cancelled) { setCitiesAggError('Не удалось загрузить сводку по городам'); setCitiesAgg([]); }
+            } finally {
+                if (!cancelled) setLoadingCitiesAgg(false);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [flowsFilter, statusFilter, citiesFilter, dateFilter.from, dateFilter.to, phoneQuery, wmFilter, paidFilter, selectedOfferValue, refreshNonce]);
+
+    // Fetch users aggregation (detailed)
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setLoadingUsersAgg(true); setUsersAggError('');
+            try {
+                const params = buildStatsParams();
+                params.set('with_detail', 'true');
+                const path = `/api/v2/leads/stats/by-users?${params.toString()}`;
+                const { ok, data } = await http.get(path);
+                if (cancelled) return;
+                if (ok && Array.isArray(data)) {
+                    setUsersAgg(data);
+                } else {
+                    setUsersAgg([]);
+                }
+            } catch (e) {
+                if (!cancelled) { setUsersAggError('Не удалось загрузить сводку по вебмастерам'); setUsersAgg([]); }
+            } finally {
+                if (!cancelled) setLoadingUsersAgg(false);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [flowsFilter, statusFilter, citiesFilter, dateFilter.from, dateFilter.to, phoneQuery, wmFilter, paidFilter, selectedOfferValue, refreshNonce]);
+
     const totalSlides = 3;
     const goPrev = () => setCarouselIndex(i => Math.max(0, i - 1));
     const goNext = () => setCarouselIndex(i => Math.min(totalSlides - 1, i + 1));
@@ -1289,9 +1352,27 @@ const AdminStatsPage = () => {
                 </div>
                 <CarouselNav />
             </div>
+            
+            {/* Grouping toggle: Лиды | По городам */}
+            <div className="mb-3 flex items-center gap-2">
+                <div className="inline-flex rounded-lg border border-gray-300 bg-white overflow-hidden text-[12px]">
+                    <button
+                        className={`px-3 h-8 font-medium nav-transition ${groupMode === 'leads' ? 'bg-yellow-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                        onClick={() => setGroupMode('leads')}
+                    >Без группировки</button>
+                    <button
+                        className={`px-3 h-8 font-medium nav-transition ${groupMode === 'cities' ? 'bg-yellow-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                        onClick={() => setGroupMode('cities')}
+                    >По городам</button>
+                    <button
+                        className={`px-3 h-8 font-medium nav-transition ${groupMode === 'users' ? 'bg-yellow-100 text-gray-900' : 'text-gray-600 hover:bg-gray-50'}`}
+                        onClick={() => setGroupMode('users')}
+                    >По вебмастерам</button>
+                </div>
+            </div>
 
-            {/* Bulk Bar */}
-            {(selected.size > 0 || selectAllFiltered) && (
+            {/* Bulk Bar (only in leads mode) */}
+            {groupMode === 'leads' && (selected.size > 0 || selectAllFiltered) && (
                 <div className="mb-2 bg-white border border-gray-200 rounded-lg p-3 flex flex-wrap items-center gap-4 text-[12px] shadow-sm">
                     <div className="flex items-center gap-2 flex-wrap">
                         {selectAllFiltered ? (
@@ -1341,14 +1422,187 @@ const AdminStatsPage = () => {
                 </div>
             )}
 
+            {/* Cities table (admin-payouts style) */}
+            {groupMode === 'cities' && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-3">
+                    <div className="px-2 py-2 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wide select-none flex items-center">
+                        <span className="w-64">Город</span>
+                        <span className="w-28">Лидов</span>
+                        <span className="w-20">Конв., %</span>
+                        <span className="w-32">Сумма</span>
+                        <span className="flex-1">Потоки</span>
+                        <span className="w-16">В раб.</span>
+                        <span className="w-16">Назн.</span>
+                        <span className="w-16">Подтв.</span>
+                        <span className="w-16">Отказ</span>
+                        <span className="w-16">Некач.</span>
+                    </div>
+                    {citiesAggError ? (
+                        <div className="px-2 py-10 text-center text-red-500 text-[12px]">{citiesAggError}</div>
+                    ) : loadingCitiesAgg ? (
+                        <div className="px-2 py-10 text-center text-gray-500 text-[12px]">Загрузка...</div>
+                    ) : (citiesAgg?.length || 0) === 0 ? (
+                        <div className="px-2 py-10 text-center text-gray-500 text-[12px]">Нет данных по городам</div>
+                    ) : (
+                        <div className="divide-y divide-gray-100 text-[12px]">
+                            {citiesAgg.map((r, idx) => {
+                                const city = r?.city || r?.name || '—';
+                                const users = Array.isArray(r?.users) ? r.users : [];
+                                const ssc = r?.service_status_counts || {};
+                                const inProg = Number(ssc.in_progress || 0);
+                                const assigned = Number(ssc.assigned || 0);
+                                const confirmed = Number(ssc.confirmed || 0);
+                                const clientReject = Number(ssc.client_reject || 0);
+                                const poorQuality = Number(ssc.poor_quality || 0);
+                                const sscTotal = inProg + assigned + confirmed + clientReject + poorQuality;
+                                const leadsCount = sscTotal > 0 ? sscTotal : Number(r?.leads_count || r?.total || r?.total_deals || 0);
+                                const qualityCount = inProg + assigned + confirmed + clientReject; // без некач.
+                                const sumToPay = Number(r?.sum_to_pay || r?.commission_sum || 0);
+                                const threads = Array.isArray(r?.lines) ? r.lines : (Array.isArray(r?.threads) ? r.threads : []);
+                                const conv = leadsCount > 0 ? Math.round((confirmed / leadsCount) * 100) : 0;
+                                return (
+                                    <div key={city + idx} className="px-2 py-2 flex items-start select-none">
+                                        <span className="w-64 text-[12px]">
+                                            <span className="font-medium text-gray-800 truncate block" title={city}>{city}</span>
+                                            {users.length > 0 && (
+                                                <span className="block text-gray-400 text-[11px] truncate" title={users.map(u=>u.name).join(', ')}>
+                                                    {users.slice(0,3).map(u=>u.name).join(', ')}{users.length>3 ? ` +${users.length-3}`: ''}
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span className="w-28 text-gray-700">
+                                            {leadsCount}
+                                            <span className="text-gray-400 text-[11px] ml-1">(кач. {qualityCount})</span>
+                                        </span>
+                                        <span className="w-20 text-gray-700">{conv}%</span>
+                                        <span className="w-32 font-semibold text-gray-900">{fmtMoney(sumToPay)} ₽</span>
+                                        <span className="flex-1 pr-2">
+                                            <div className="flex flex-col gap-1">
+                                                {threads.map((t, i2) => {
+                                                    const flowName = t.thread?.title || t.title || t.thread_name || `Поток ${t.thread_id || ''}`;
+                                                    const source = mapTrafficSourceLabel(t.thread?.traffic_source || t.traffic_source || '');
+                                                    const tDeals = Number(t.total_deals || t.total || 0);
+                                                    const tConfirmed5 = Number(t.status_5 || t.confirmed || 0);
+                                                    const tSum = Number(t.commission_sum || t.sum_to_pay || 0);
+                                                    return (
+                                                        <div key={(t.thread_id || flowName) + i2} className="flex items-center gap-2 text-[11px] text-gray-600">
+                                                            <Icon name={sourceIcon(source)} size={12} className="opacity-70" />
+                                                            <span className="truncate" title={flowName}>{flowName}</span>
+                                                            <span className="text-gray-400">·</span>
+                                                            <span className="text-gray-500" title="Лидов всего / Подтверждено">{tDeals} / {tConfirmed5}</span>
+                                                            <span className="text-gray-400">·</span>
+                                                            <span className="font-mono">{fmtMoney(tSum)} ₽</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </span>
+                                        <span className="w-16 text-gray-700">{inProg}</span>
+                                        <span className="w-16 text-gray-700">{assigned}</span>
+                                        <span className="w-16 text-green-700">{confirmed}</span>
+                                        <span className="w-16 text-red-700">{clientReject}</span>
+                                        <span className="w-16 text-gray-500">{poorQuality}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Users table (like cities) */}
+            {groupMode === 'users' && (
+                <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-3">
+                    <div className="px-2 py-2 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wide select-none flex items-center">
+                        <span className="w-64">Вебмастер</span>
+                        <span className="w-28">Лидов</span>
+                        <span className="w-20">Конв., %</span>
+                        <span className="w-32">Сумма</span>
+                        <span className="flex-1">Потоки</span>
+                        <span className="w-16">В раб.</span>
+                        <span className="w-16">Назн.</span>
+                        <span className="w-16">Подтв.</span>
+                        <span className="w-16">Отказ</span>
+                        <span className="w-16">Некач.</span>
+                    </div>
+                    {usersAggError ? (
+                        <div className="px-2 py-10 text-center text-red-500 text-[12px]">{usersAggError}</div>
+                    ) : loadingUsersAgg ? (
+                        <div className="px-2 py-10 text-center text-gray-500 text-[12px]">Загрузка...</div>
+                    ) : (usersAgg?.length || 0) === 0 ? (
+                        <div className="px-2 py-10 text-center text-gray-500 text-[12px]">Нет данных по вебмастерам</div>
+                    ) : (
+                        <div className="divide-y divide-gray-100 text-[12px]">
+                            {usersAgg.map((u, idx) => {
+                                const wmName = u?.user_name || `Вебмастер ${u?.user_id || ''}`;
+                                const leadsCount = Number(u?.total || 0);
+                                const conv = Math.round(Number(u?.conversion_percent || 0));
+                                const sum = Number(u?.confirmed_commission || 0);
+                                const ssc = u?.service_status_counts || {};
+                                const inProg = Number(ssc.in_progress || 0);
+                                const assigned = Number(ssc.assigned || 0);
+                                const confirmed = Number(ssc.confirmed || 0);
+                                const clientReject = Number(ssc.client_reject || 0);
+                                const poorQuality = Number(ssc.poor_quality || 0);
+                                const threads = Array.isArray(u?.threads) ? u.threads : [];
+                                const qualityCount = inProg + assigned + confirmed + clientReject;
+                                return (
+                                    <div key={(u.user_id || wmName) + idx} className="px-2 py-2 flex items-start select-none">
+                                        <span className="w-64 text-[12px]">
+                                            <span className="font-medium text-gray-800 truncate block" title={wmName}>{wmName}</span>
+                                            <span className="block text-gray-400 text-[11px] font-mono">{u?.user_id}</span>
+                                        </span>
+                                        <span className="w-28 text-gray-700">
+                                            {leadsCount}
+                                            <span className="text-gray-400 text-[11px] ml-1">(кач. {qualityCount})</span>
+                                        </span>
+                                        <span className="w-20 text-gray-700">{conv}%</span>
+                                        <span className="w-32 font-semibold text-gray-900">{fmtMoney(sum)} ₽</span>
+                                        <span className="flex-1 pr-2">
+                                            <div className="flex flex-col gap-1">
+                                                {threads.map((t, i2) => {
+                                                    const flowName = t.thread_name || t.thread?.title || `Поток ${t.thread_id || ''}`;
+                                                    const source = mapTrafficSourceLabel(t.traffic_source || t.thread?.traffic_source || '');
+                                                    const tDeals = Number(t.total_deals || t.total || 0);
+                                                    const tConfirmed = Number((t.service_status_counts && t.service_status_counts.confirmed) || t.confirmed || 0);
+                                                    const tSum = Number(t.commission_sum || t.sum_to_pay || 0);
+                                                    return (
+                                                        <div key={(t.thread_id || flowName) + i2} className="flex items-center gap-2 text-[11px] text-gray-600">
+                                                            <Icon name={sourceIcon(source)} size={12} className="opacity-70" />
+                                                            <span className="truncate" title={flowName}>{flowName}</span>
+                                                            <span className="text-gray-400">·</span>
+                                                            <span className="text-gray-500" title="Лидов всего / Подтверждено">{tDeals} / {tConfirmed}</span>
+                                                            <span className="text-gray-400">·</span>
+                                                            <span className="font-mono">{fmtMoney(tSum)} ₽</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </span>
+                                        <span className="w-16 text-gray-700">{inProg}</span>
+                                        <span className="w-16 text-gray-700">{assigned}</span>
+                                        <span className="w-16 text-green-700">{confirmed}</span>
+                                        <span className="w-16 text-red-700">{clientReject}</span>
+                                        <span className="w-16 text-gray-500">{poorQuality}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Total count above table */}
+            {groupMode === 'leads' && (
             <div className="flex justify-start mb-1">
                 <div className="text-[11px] text-gray-500">
                     Всего лидов: <span className="font-mono text-gray-800">{tableTotal}</span>
                 </div>
             </div>
+            )}
 
             {/* Table */}
+            {groupMode === 'leads' && (
             <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
                 <div className="px-2 py-2 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wide select-none flex items-center">
                     <span className="w-6 flex-shrink-0">
@@ -1431,6 +1685,7 @@ const AdminStatsPage = () => {
                     ))}
                 </div>
             </div>
+            )}
             {tableTotal > 0 && (
                 <div className="flex flex-wrap items-center gap-2 mt-3 text-[11px]">
                     <div className="flex items-center gap-1">
