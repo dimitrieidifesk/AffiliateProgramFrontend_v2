@@ -29,6 +29,7 @@ const TopNav = () => {
             ? [
                 { label: 'Статистика', path: '/admin/stats' },
                 { label: 'Выплаты', path: '/admin/payouts' },
+                { label: 'Настройки выплат', path: '/rates-settings' },
               ]
             : [])
     ];

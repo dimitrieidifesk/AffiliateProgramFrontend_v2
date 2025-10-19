@@ -21,6 +21,7 @@ import Login from "pages/login";
 import NotFound from "pages/NotFound";
 import AdminStatsPage from 'pages/admin-stats';
 import AdminPayoutsPage from 'pages/admin-payouts';
+import RatesSettingsPage from 'pages/rates-settings';
 
 const Routes = () => {
   return (
@@ -54,6 +55,7 @@ const InnerRoutes = () => {
                 <Route path="/channel-avito/:id" element={<ChannelAvitoSettings />} />
                 <Route path="/admin/stats" element={<AdminStatsPage />} />
                 <Route path="/admin/payouts" element={<AdminPayoutsPage />} />
+                <Route path="/rates-settings" element={<RatesSettingsPage />} />
           
           {/* Старые маршруты для совместимости */}
           <Route path="/streams" element={<ThreadList />} />
