@@ -6,7 +6,7 @@ import 'react-day-picker/dist/style.css';
 const presets = [
   { id: 'today', label: 'Сегодня' },
   { id: 'week', label: '7д' },
-  { id: 'month', label: '30д' },
+  { id: 'month', label: 'Этот месяц' },
   { id: 'prevMonth', label: 'Пред.мес' }
 ];
 
@@ -38,10 +38,13 @@ const DateRangeCompact = ({ value, onChange }) => {
         fromDate.setDate(today.getDate() - 6);
         break;
       }
-      case 'month': { // last 30 days (label 30д)
-        toDate = today;
-        fromDate = new Date(today);
-        fromDate.setDate(today.getDate() - 29);
+      case 'month': { // current calendar month
+        const y = today.getFullYear();
+        const m = today.getMonth();
+        // first day of current month
+        fromDate = new Date(y, m, 1);
+        // last day of current month
+        toDate = new Date(y, m + 1, 0);
         break;
       }
       case 'prevMonth': { // full previous calendar month

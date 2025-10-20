@@ -467,7 +467,12 @@ const AdminStatsPage = () => {
                     const mapped = data.map(row => {
                         const d = new Date(row.bucket);
                         const label = hourlyMode ? `${pad(d.getHours())}:00` : `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
-                        return { date: label, leads: Number(row.total || 0), confirmed: Number(row.realized || 0) };
+                        return { 
+                            date: label, 
+                            total_qualified: Number(row.total_qualified || 0),
+                            total_bad: Number(row.total_bad || 0),
+                            confirmed: Number(row.realized || 0) + Number(row.hold || 0)
+                        };
                     });
                     setLeadDynamicsData(mapped);
                 } else {
@@ -1283,11 +1288,15 @@ const AdminStatsPage = () => {
                                             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                                             <YAxis tick={{ fontSize: 11 }} width={30} />
                                             <ReTooltip cursor={false} content={({ active, payload, label }) => {
-                                                if (!active || !payload) return null; const leadsRow = payload.find(p => p.dataKey === 'leads'); const confRow = payload.find(p => p.dataKey === 'confirmed');
-                                                return <div className="bg-white border border-yellow-300 rounded-md shadow-sm p-2 text-[11px]"><div className="text-[10px] text-gray-400 mb-1 font-mono">{label}</div><div className="flex justify-between"><span className="text-gray-500">Всего</span><span className="font-semibold">{leadsRow?.value}</span></div><div className="flex justify-between"><span className="text-gray-500">Подтв.</span><span className="font-semibold text-green-600">{confRow?.value}</span></div></div>;
+                                                if (!active || !payload) return null; 
+                                                const qualifiedRow = payload.find(p => p.dataKey === 'total_qualified'); 
+                                                const badRow = payload.find(p => p.dataKey === 'total_bad');
+                                                const confirmedRow = payload.find(p => p.dataKey === 'confirmed');
+                                                return <div className="bg-white border border-yellow-300 rounded-md shadow-sm p-2 text-[11px]"><div className="text-[10px] text-gray-400 mb-1 font-mono">{label}</div><div className="flex justify-between"><span className="text-gray-500">Качественные</span><span className="font-semibold text-blue-600">{qualifiedRow?.value}</span></div><div className="flex justify-between"><span className="text-gray-500">Некачественные</span><span className="font-semibold text-red-600">{badRow?.value}</span></div><div className="flex justify-between"><span className="text-gray-500">Подтвержденные</span><span className="font-semibold text-green-600">{confirmedRow?.value}</span></div></div>;
                                             }} />
-                                            <Line dataKey="leads" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3, fill: '#f59e0b' }} />
-                                            <Line dataKey="confirmed" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} />
+                                            <Line dataKey="total_qualified" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} name="Качественные" />
+                                            <Line dataKey="total_bad" stroke="#ef4444" strokeWidth={2} dot={{ r: 3, fill: '#ef4444' }} name="Некачественные" />
+                                            <Line dataKey="confirmed" stroke="#10b981" strokeWidth={2} dot={{ r: 3, fill: '#10b981' }} name="Подтвержденные" />
                                         </LineChart>
                                     </ResponsiveContainer>
                                     )}
@@ -1667,7 +1676,14 @@ const AdminStatsPage = () => {
                                 <span className="block text-gray-400 font-mono">{webmastersById.get(String(l.user_id ?? l.wmId))?.id || l.user_id || l.wmId || '-'}</span>
                             </span>
                             <span className="w-24">{commissionCell(l)}</span>
-                            <span className="w-20 text-[11px] text-gray-600">{l.city}</span>
+                            <span className="w-20 text-[11px]">
+                                <div className="text-gray-600">{l.city}</div>
+                                {l.calculated_commission_for_city && (
+                                    <div className="text-[10px] text-gray-400 mt-0.5">
+                                        50% от {l.calculated_commission_for_city}
+                                    </div>
+                                )}
+                            </span>
                             <span className="w-32">{renderStatusBadge(l.status)}</span>
                             <span className="w-40 pr-2">
                                 <div className="text-[11px] font-medium text-gray-800 truncate" title={l.flowName}>{l.flowName}</div>

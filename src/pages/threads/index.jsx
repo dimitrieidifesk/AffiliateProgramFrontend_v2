@@ -18,6 +18,8 @@ const ThreadList = () => {
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [stats, setStats] = useState({});
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // Mock user data
   const mockUser = {
@@ -29,6 +31,43 @@ const ThreadList = () => {
 
   const handleSidebarToggle = () => {
     setSidebarCollapsed(!sidebarCollapsed);
+  };
+
+  const loadThreadStats = async () => {
+    setLoadingStats(true);
+    try {
+      const uid = getCurrentUserId() || '00000';
+      
+      // Дата год назад
+      const start = new Date();
+      start.setFullYear(start.getFullYear() - 1);
+      const startDate = start.toISOString().split('.')[0]; // убираем миллисекунды
+      
+      // Завтрашняя дата
+      const finish = new Date();
+      finish.setDate(finish.getDate() + 1);
+      const finishDate = finish.toISOString().split('.')[0];
+      
+      const params = new URLSearchParams();
+      params.set('start', startDate);
+      params.set('finish', finishDate);
+      params.set('user_id', uid);
+      
+      const res = await http.get(`/api/v2/leads/stats/by-threads?${params.toString()}`, { navigate });
+      
+      if (res.ok && Array.isArray(res.data)) {
+        // Конвертируем массив статистики в объект для быстрого поиска по thread_id
+        const statsMap = {};
+        res.data.forEach(stat => {
+          statsMap[stat.thread_id] = stat;
+        });
+        setStats(statsMap);
+      }
+    } catch (e) {
+      console.warn('Failed to load thread stats:', e);
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
   useEffect(() => {
@@ -54,11 +93,8 @@ const ThreadList = () => {
             // Статус зависит от флага is_deleted с бэка
             status: it?.is_deleted ? 'disabled' : 'active',
             isDeleted: Boolean(it?.is_deleted),
-            // метрики пока скелетоны; оставим null
-            leads: null,
-            conversion: null,
-            revenue: null,
             source: normalizeTrafficSource(it.traffic_source),
+            telephonyPhone: it.telephony_virtual_phone || null,
             created: null,
           }));
           if (mounted) setThreads(mapped);
@@ -76,6 +112,13 @@ const ThreadList = () => {
     loadThreads();
     return () => { mounted = false; };
   }, [navigate, showArchived]);
+
+  // Загружаем статистику только для активных потоков
+  useEffect(() => {
+    if (!showArchived && threads.length > 0) {
+      loadThreadStats();
+    }
+  }, [threads, showArchived]);
 
   const handleCreateThread = () => {
     navigate('/thread-wizard');
@@ -358,9 +401,19 @@ const ThreadList = () => {
                           <Icon name={sourceConfig?.icon} size={20} color={sourceConfig?.color} />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h3 className="text-base font-semibold text-black mb-1">
-                            {thread?.name}
-                          </h3>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-base font-semibold text-black">
+                              {thread?.name}
+                            </h3>
+                            {thread?.telephonyPhone && (
+                              <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                                <Icon name="Phone" size={11} color="#F59E0B" />
+                                <span className="font-medium text-yellow-800">
+                                  {thread.telephonyPhone}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-sm text-gray-500 truncate">
                             {thread?.description}
                           </p>
@@ -370,28 +423,62 @@ const ThreadList = () => {
                       {/* Center Section - Key Metrics */}
                       <div className="flex items-center space-x-10 text-sm">
                         <div className="text-center min-w-[64px]">
-                          {loading ? (
+                          {loading || loadingStats ? (
                             <div className="w-12 h-4 bg-gray-200 rounded animate-pulse mx-auto" />
                           ) : (
-                            <div className="font-semibold text-black text-base">—</div>
+                            <div className="font-semibold text-black text-base">
+                              {stats[thread?.id]?.total || 0}
+                            </div>
                           )}
                           <div className="text-xs text-gray-500">лидов</div>
                         </div>
-                        <div className="text-center min-w-[64px]">
-                          {loading ? (
+                        {/* Некачественные лиды рядом с лидами */}
+                        <div className="text-center min-w-[50px]">
+                          {loading || loadingStats ? (
                             <div className="w-10 h-4 bg-gray-200 rounded animate-pulse mx-auto" />
                           ) : (
-                            <div className="font-semibold text-green-600 text-base">—</div>
+                            <div className="font-semibold text-gray-600 text-base">
+                              {stats[thread?.id]?.bad_count || 0}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500">некач.</div>
+                        </div>
+                        <div className="text-center min-w-[64px]">
+                          {loading || loadingStats ? (
+                            <div className="w-10 h-4 bg-gray-200 rounded animate-pulse mx-auto" />
+                          ) : (
+                            <div className="font-semibold text-green-600 text-base">
+                              {stats[thread?.id]?.conversion_percent 
+                                ? `${stats[thread?.id].conversion_percent.toFixed(1)}%` 
+                                : '—'}
+                            </div>
                           )}
                           <div className="text-xs text-gray-500">конверсия</div>
                         </div>
                         <div className="text-center min-w-[80px]">
-                          {loading ? (
+                          {loading || loadingStats ? (
                             <div className="w-16 h-4 bg-gray-200 rounded animate-pulse mx-auto" />
                           ) : (
-                            <div className="font-semibold text-purple-600 text-base">—</div>
+                            <div className="font-semibold text-purple-600 text-base">
+                              {stats[thread?.id]?.commission_confirmed_sum 
+                                ? formatCurrency(stats[thread?.id].commission_confirmed_sum)
+                                : '—'}
+                            </div>
                           )}
                           <div className="text-xs text-gray-500">доход</div>
+                        </div>
+                        {/* Сумма в холде */}
+                        <div className="text-center min-w-[70px]">
+                          {loading || loadingStats ? (
+                            <div className="w-16 h-4 bg-gray-200 rounded animate-pulse mx-auto" />
+                          ) : (
+                            <div className="font-semibold text-orange-600 text-base">
+                              {stats[thread?.id]?.commission_hold_sum 
+                                ? formatCurrency(stats[thread?.id].commission_hold_sum)
+                                : '—'}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-500">в холде</div>
                         </div>
                       </div>
 
